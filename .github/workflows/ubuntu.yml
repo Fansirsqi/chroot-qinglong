@@ -29,13 +29,25 @@ jobs:
       if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
       run: |
         echo "版本不同或缓存未命中。继续执行发布。"
-        echo "new_version=${{ env.current_version }}" >>$GITHUB_ENV
 
     - name: 设置 Docker Buildx
       if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
       uses: docker/setup-buildx-action@v2
 
-    # ... (其他 Docker 相关步骤)
+    - name: 拉取 Docker 镜像
+      run: docker pull whyour/qinglong:debian
+
+    - name: Run Docker Container
+      run: docker run --name qinglong whyour/qinglong:debian
+
+    - name: Execute Command in Docker Container
+      run: docker exec -it qinglong bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+
+    - name: Commit Docker Container
+      run: docker commit qinglong fan
+
+    - name: Extract Docker Image
+      run: docker save -o fan.tar fan
 
     - name: 创建发布
       if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
@@ -68,4 +80,7 @@ jobs:
         key: ${{ runner.OS }}-version
         restore-keys: ${{ runner.OS }}-version
         upload-changed: true
+
+    - name: 写入当前版本文件
+      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
       run: echo ${{ env.current_version }} > .version
