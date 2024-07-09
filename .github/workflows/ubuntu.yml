@@ -40,9 +40,11 @@ jobs:
       - name: 运行 Docker 容器
         run: docker run --name qinglong -d whyour/qinglong:debian
 
+      - name: 进入容器
+        run: docker exec -it qinglong /bin/bash
+
       - name: 定制容器
         run: |
-          docker exec -it qinglong bash
           pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
           cp /etc/apt/sources.list /etc/apt/sources.list.bak
           echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
@@ -50,7 +52,9 @@ jobs:
           printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n" >>/etc/apt/sources.list
           printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n" >>/etc/apt/sources.list
           exit
-          docker stop qinglong
+
+      - name: 停止容器
+        run: docker stop qinglong
 
       - name: 提交 Docker 容器
         run: docker commit qinglong fan
