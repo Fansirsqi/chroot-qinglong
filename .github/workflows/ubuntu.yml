@@ -2,85 +2,91 @@ name: 检查版本并上传至发布
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # 每周日的午夜运行一次
+    - cron: "0 0 * * 0" # 每周日的午夜运行一次
   workflow_dispatch: # 手动触发事件
 
 jobs:
   check_version:
     runs-on: ubuntu-latest
     steps:
-    - name: 检出仓库代码
-      uses: actions/checkout@v3
+      - name: 检出仓库代码
+        uses: actions/checkout@v3
 
-    - name: 从缓存中获取当前版本
-      id: cache_version
-      uses: actions/cache@v3
-      with:
-        path: .version
-        key: ${{ runner.OS }}-version
+      - name: 从缓存中获取当前版本
+        id: cache_version
+        uses: actions/cache@v3
+        with:
+          path: .version
+          key: ${{ runner.OS }}-version
 
-    - name: 获取远程版本
-      run: |
-        curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-        current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
-        echo "current_version=$current_version" >>$GITHUB_ENV
+      - name: 获取远程版本
+        run: |
+          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
+          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          echo "current_version=$current_version" >>$GITHUB_ENV
 
-    - name: 比较版本
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      run: |
-        echo "版本不同或缓存未命中。继续执行发布。"
+      - name: 比较版本
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        run: |
+          echo "版本不同或缓存未命中。继续执行发布。"
 
-    - name: 设置 Docker Buildx
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      uses: docker/setup-buildx-action@v2
+      - name: 设置 Docker Buildx
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        uses: docker/setup-buildx-action@v2
 
-    - name: 拉取 Docker 镜像
-      run: docker pull whyour/qinglong:debian
+      - name: 拉取 Docker 镜像
+        run: docker pull whyour/qinglong:debian
 
-    - name: Run Docker Container
-      run: docker run --name qinglong whyour/qinglong:debian
+      - name: Run Docker Container
+        run: docker run --name qinglong whyour/qinglong:debian
 
-    - name: Execute Command in Docker Container
-      run: docker exec -it qinglong bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+      - name: Execute Command in Docker Container
+        run: |
+          docker exec -it qinglong bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+          cp /etc/apt/sources.list /etc/apt/sources.list.bak
+          echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
+          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n" >/etc/apt/sources.list
+          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n" >>/etc/apt/sources.list
+          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n" >>/etc/apt/sources.list
 
-    - name: Commit Docker Container
-      run: docker commit qinglong fan
+      - name: Commit Docker Container
+        run: docker commit qinglong fan
 
-    - name: Extract Docker Image
-      run: docker save -o fan.tar fan
+      - name: Extract Docker Image
+        run: docker save -o fan.tar fan
 
-    - name: 创建发布
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ env.current_version }}
-        release_name: 发布 ${{ env.current_version }}
-        draft: false
-        prerelease: false
+      - name: 创建发布
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.current_version }}
+          release_name: 发布 ${{ env.current_version }}
+          draft: false
+          prerelease: false
 
-    - name: 上传发布资产
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./fan.tar
-        asset_name: fan.tar
-        asset_content_type: application/x-tar
+      - name: 上传发布资产
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fan.tar
+          asset_name: fan.tar
+          asset_content_type: application/x-tar
 
-    - name: 将当前版本保存到缓存
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      uses: actions/cache@v3
-      with:
-        path: .version
-        key: ${{ runner.OS }}-version
-        restore-keys: ${{ runner.OS }}-version
-        upload-changed: true
+      - name: 将当前版本保存到缓存
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        uses: actions/cache@v3
+        with:
+          path: .version
+          key: ${{ runner.OS }}-version
+          restore-keys: ${{ runner.OS }}-version
+          upload-changed: true
 
-    - name: 写入当前版本文件
-      if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
-      run: echo ${{ env.current_version }} > .version
+      - name: 写入当前版本文件
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        run: echo ${{ env.current_version }} > .version
