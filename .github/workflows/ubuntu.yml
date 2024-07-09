@@ -1,68 +1,67 @@
-name: 检查版本并上传至发布
+name: 检查版本并上传至RELEASE
 
 on:
   schedule:
-    - cron: "0 0 * * 0" # 每周日的午夜运行一次
+    - cron: "0 0 * * 0" # 每周日的午夜RUN一次
   workflow_dispatch: # 手动触发事件
 
 jobs:
   check_version:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出仓库代码
+      - name: CHECKOUT CODE
         uses: actions/checkout@v3
 
-      - name: 从缓存中获取当前版本
+      - name: GET CURRENT VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v3
         with:
           path: .version
           key: ${{ runner.OS }}-version
 
-      - name: 获取远程版本
+      - name: GET CURRENT VERSION
         run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
           current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
           echo "current_version=$current_version" >>$GITHUB_ENV
 
-      - name: 比较版本
+      - name: COMPARE VERSIONS
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         run: |
-          echo "版本不同或缓存未命中。继续执行发布。"
+          echo "版本不同或缓存未命中。继续执行RELEASE。"
 
-      - name: 设置 Docker Buildx
+      - name: SETTING DOCKER BUILDX
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         uses: docker/setup-buildx-action@v2
 
-      - name: 拉取 Docker 镜像
+      - name: PULL DOCKER IMAGE
         run: docker pull whyour/qinglong:debian
 
-      - name: 运行 Docker 容器
+      - name: RUN DOCKER CONTAINER
         run: docker run --name qinglong -d whyour/qinglong:debian
 
-      - name: 进入容器
-        run: docker exec -it qinglong /bin/bash
-
-      - name: 定制容器
+      - name: CHECK API STATUS
         run: |
-          pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-          cp /etc/apt/sources.list /etc/apt/sources.list.bak
-          echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
-          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n" >/etc/apt/sources.list
-          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n" >>/etc/apt/sources.list
-          printf "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n" >>/etc/apt/sources.list
-          exit
+          while ! curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
 
-      - name: 停止容器
+      - name: EXECUTE MULTIPLE COMMANDS IN DOCKER CONTAINER
+        run: |
+          docker exec -it qinglong bash -c "cp /etc/apt/sources.list /etc/apt/sources.list.bak"
+          echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
+          docker exec -it qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
+          docker exec -it qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n' >>/etc/apt/sources.list"
+          docker exec -it qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
+
+      - name: STOP CONTAINER
         run: docker stop qinglong
 
-      - name: 提交 Docker 容器
+      - name: COMMIT Docker CONTAINER
         run: docker commit qinglong fan
 
-      - name: 提取 Docker 镜像
+      - name: GOT Docker IMAGE
         run: docker save -o fan.tar fan
 
-      - name: 创建发布
+      - name: CREATE RELEASE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         id: create_release
         uses: actions/create-release@v1
@@ -70,11 +69,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.current_version }}
-          release_name: 发布 ${{ env.current_version }}
+          release_name: RELEASE ${{ env.current_version }}
           draft: false
           prerelease: false
 
-      - name: 上传发布资产
+      - name: PUSH RELEASE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         uses: actions/upload-release-asset@v1
         env:
@@ -85,7 +84,7 @@ jobs:
           asset_name: fan.tar
           asset_content_type: application/x-tar
 
-      - name: 将当前版本保存到缓存
+      - name: SAVE VERSION IN CACHE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         uses: actions/cache@v3
         with:
@@ -94,6 +93,6 @@ jobs:
           restore-keys: ${{ runner.OS }}-version
           upload-changed: true
 
-      - name: 写入当前版本文件
+      - name: WRITE VERSION TO FILE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         run: echo ${{ env.current_version }} > .version
