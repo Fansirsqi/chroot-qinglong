@@ -46,6 +46,7 @@ jobs:
 
       - name: EXECUTE MULTIPLE COMMANDS IN DOCKER CONTAINER
         run: |
+          docker exec -it qinglong bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
           docker exec -it qinglong bash -c "cp /etc/apt/sources.list /etc/apt/sources.list.bak"
           echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
           docker exec -it qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
