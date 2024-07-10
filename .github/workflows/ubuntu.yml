@@ -38,11 +38,11 @@ jobs:
         run: docker pull whyour/qinglong:debian
 
       - name: RUN DOCKER CONTAINER
-        run: docker run --name qinglong -d -p 5700:5700 whyour/qinglong:debian
+        run: docker run --name qinglong -dit -p 5700:5700 whyour/qinglong:debian
 
       - name: CHECK API STATUS
         run: |
-          while ! curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
+          while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
 
       - name: EXECUTE MULTIPLE COMMANDS IN DOCKER CONTAINER
         run: |
