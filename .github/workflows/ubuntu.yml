@@ -35,32 +35,46 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: PULL DOCKER IMAGE
-        run: docker pull whyour/qinglong:debian
+        run: |
+          docker pull whyour/qinglong:debian
+          docker pull whyour/qinglong:latest
 
       - name: RUN DOCKER CONTAINER
-        run: docker run --name qinglong -dit -p 5700:5700 whyour/qinglong:debian
+        run: |
+          docker run --name qinglong-debian -dit -p 5700:5700 whyour/qinglong:debian
+          docker run --name qinglong-latest -dit -p 5701:5700 whyour/qinglong:latest
 
       - name: CHECK API STATUS
         run: |
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
+          while ! curl -s -w "%{http_code}" http://127.0.0.1:5701/api/public/health | grep -q 200; do sleep 1; done
 
-      - name: EXECUTE MULTIPLE COMMANDS IN DOCKER CONTAINER
+      - name: EXECUTE MULTIPLE COMMANDS IN DEBIAN CONTAINER
         run: |
-          docker exec qinglong bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
-          docker exec qinglong bash -c "cp /etc/apt/sources.list /etc/apt/sources.list.bak"
-          echo "备份 /etc/apt/sources.list 至 /etc/apt/sources.list.bak"
-          docker exec qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
-          docker exec qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n' >>/etc/apt/sources.list"
-          docker exec qinglong bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
+          docker exec qinglong-debian bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+          docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
+          docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n' >>/etc/apt/sources.list"
+          docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
+
+      - name: EXECUTE MULTIPLE COMMANDS IN LATEST CONTAINER
+        run: |
+          docker exec qinglong-latest bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+          docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
 
       - name: STOP CONTAINER
-        run: docker stop qinglong
+        run: |
+          docker stop qinglong-debian
+          docker stop qinglong-latest
 
-      - name: COMMIT Docker CONTAINER
-        run: docker commit qinglong fan
+      - name: COMMIT DOCKER CONTAINER
+        run: |
+          docker commit qinglong-debian qinglong-debian
+          docker commit qinglong-latest qinglong-latest
 
-      - name: GOT Docker IMAGE
-        run: docker save -o fan.tar fan
+      - name: SAVE DOCKER IMAGE
+        run: |
+          docker save -o qinglong-debian.tar qinglong-debian
+          docker save -o qinglong-latest.tar qinglong-latest
 
       - name: CREATE RELEASE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
@@ -74,15 +88,26 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: PUSH RELEASE
+      - name: UPLOAD DEBIAN RELEASE ASSET
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./fan.tar
-          asset_name: fan.tar
+          asset_path: ./qinglong-debian.tar
+          asset_name: qinglong-debian.tar
+          asset_content_type: application/x-tar
+
+      - name: UPLOAD LATEST RELEASE ASSET
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./qinglong-latest.tar
+          asset_name: qinglong-latest.tar
           asset_content_type: application/x-tar
 
       - name: SAVE VERSION IN CACHE
