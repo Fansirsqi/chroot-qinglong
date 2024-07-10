@@ -117,7 +117,6 @@ jobs:
           path: .version
           key: ${{ runner.OS }}-version
           restore-keys: ${{ runner.OS }}-version
-          upload-changed: true
 
       - name: WRITE VERSION TO FILE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
