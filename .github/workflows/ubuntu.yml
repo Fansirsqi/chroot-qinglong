@@ -73,8 +73,8 @@ jobs:
 
       - name: SAVE DOCKER IMAGE
         run: |
-          docker save -o qinglong-debian.tar qinglong-debian
-          docker save -o qinglong-latest.tar qinglong-latest
+          docker export -o qinglong-debian.tar qinglong-debian
+          docker export -o qinglong-latest.tar qinglong-latest
 
       - name: CREATE RELEASE
         if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
