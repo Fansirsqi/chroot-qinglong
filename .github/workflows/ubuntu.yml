@@ -26,6 +26,7 @@ jobs:
 
           if [ -f ".version" ]; then
             cached_version=$(cat .version)
+            echo "cached_version=$cached_version" >> $GITHUB_ENV
             echo "Version file found in cache. $cached_version"
             echo "cached_version_file_found=true" >> $GITHUB_ENV
           else
@@ -47,14 +48,13 @@ jobs:
 
           echo "current_version=$current_version" >>$GITHUB_ENV
 
-          echo "$current_version" > .version # 将当前版本写入.version文件
       - name: COMPARE VERSIONS
         id: compare_versions
         run: |
 
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          # current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
-          cached_version=$(cat .version)
+          # cached_version=$(cat .version)
 
           echo "Cached version: $cached_version"
 
