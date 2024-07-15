@@ -35,26 +35,30 @@ jobs:
           fi
       - name: GET CURRENT VERSION
         id: get_current_version
-        # if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
+        if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
         run: |
 
-          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
+          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
           echo "Current working directory: $(pwd)" # 打印当前工作目录
           echo "Current working directory files : $(ls -ll)" # 打印当前工作目录
 
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
           echo "Current version: $current_version" # 直接输出当前版本
 
           echo "current_version=$current_version" >>$GITHUB_ENV
 
+          echo "$current_version" > .version # 将当前版本写入.version文件
+
       - name: COMPARE VERSIONS
         id: compare_versions
         run: |
 
-          # current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
 
-          # cached_version=$(cat .version)
+          current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
+          cached_version=$(cat .version)
 
           echo "Cached version: $cached_version"
 
