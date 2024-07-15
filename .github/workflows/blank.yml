@@ -17,4 +17,7 @@ jobs:
 
       - name: Check Version
         run: |
-          curl https://qn.whyour.cn/version.yaml
+          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
+          ls
+          cur_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          echo "$cur_version"
