@@ -62,7 +62,7 @@ jobs:
 
   export_docker_images:
     needs: check_version
-    if: needs.check_version.outputs.new_version_found == 'true'
+    if: check_version.outputs.new_version_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: SETTING DOCKER BUILDX
@@ -114,7 +114,7 @@ jobs:
     needs:
       - check_version
       - export_docker_images
-    if: needs.check_version.outputs.new_version_found == 'true'
+    if: check_version.outputs.new_version_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: CREATE RELEASE
@@ -123,8 +123,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ needs.check_version.outputs.current_version }}
-          release_name: RELEASE ${{ needs.check_version.outputs.current_version }}
+          tag_name: ${{ check_version.outputs.current_version }}
+          release_name: RELEASE ${{ check_version.outputs.current_version }}
           draft: false
           prerelease: false
       - name: UPLOAD DEBIAN RELEASE ASSET
@@ -152,4 +152,4 @@ jobs:
           key: ${{ runner.OS }}-version
           restore-keys: ${{ runner.OS }}-version
       - name: WRITE VERSION TO FILE
-        run: echo ${{ needs.check_version.outputs.current_version }} > .version
+        run: echo ${{ check_version.outputs.current_version }} > .version
