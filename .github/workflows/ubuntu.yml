@@ -1,4 +1,4 @@
-name: EXPORT DOCKER SERVICES
+name: EXPORT-DOCKER-SERVICES
 
 on:
   schedule:
