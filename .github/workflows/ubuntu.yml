@@ -5,60 +5,59 @@ on:
   workflow_dispatch: null
 jobs:
   check_version:
-  runs-on: ubuntu-latest
-  outputs:
-    new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
-    cached_version_file_found: ${{ steps.cached_version_found.outputs.version_file_found }}
-    current_version: ${{ steps.get_latest_version_on_qinglong.outputs.current_version }}
-    cached_version: ${{ steps.get_latest_version_on_qinglong.outputs.cached_version }}
-  steps:
-    - name: CHECKOUT CODE
-      uses: actions/checkout@v3
+    runs-on: ubuntu-latest
+    outputs:
+      new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
+      cached_version_file_found: ${{ steps.cached_version_found.outputs.version_file_found }}
+      current_version: ${{ steps.get_latest_version_on_qinglong.outputs.current_version }}
+      cached_version: ${{ steps.get_latest_version_on_qinglong.outputs.cached_version }}
+    steps:
+      - name: CHECKOUT CODE
+        uses: actions/checkout@v3
+      - name: GET CURRENT VERSION FROM CACHE
+        id: cache_version
+        uses: actions/cache@v3
+        with:
+          path: .version
+          key: fixed-cache-key-for-version
+      - name: CHECK IF VERSION FILE EXISTS
+        id: cached_version_found
+        run: |
+          if [ -f ".version" ]; then
+            cached_version=$(cat .version)
+            echo "Version file found in cache. $cached_version"
+            echo "::set-output name=cached_version_file_found::true"
+          else
+            echo "Version file not found in cache."
+            echo "::set-output name=cached_version_file_found::false"
+          fi
+      - name: GET LATEST VERSION ON QINGLONG
+        id: get_latest_version_on_qinglong
+        run: >
+          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
-    - name: GET CURRENT VERSION FROM CACHE
-      id: cache_version
-      uses: actions/cache@v3
-      with:
-        path: .version
-        key: fixed-cache-key-for-version
 
-    - name: CHECK IF VERSION FILE EXISTS
-      id: cached_version_found
-      run: |
-        if [ -f ".version" ]; then
+          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
+          echo "$current_version" > .version # 将当前版本写入.version文件
+
+          echo "Current version: $current_version" # 输出当前版本
+
+
+          echo "::set-output name=current_version::$current_version" # 设置当前版本的输出变量
+      - name: COMPARE VERSIONS
+        id: compare_versions
+        run: |
           cached_version=$(cat .version)
-          echo "Version file found in cache. $cached_version"
-          echo "::set-output name=cached_version_file_found::true"
-        else
-          echo "Version file not found in cache."
-          echo "::set-output name=cached_version_file_found::false"
-        fi
-
-    - name: GET LATEST VERSION ON QINGLONG
-      id: get_latest_version_on_qinglong
-      run: |
-        curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-
-        current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
-        echo "$current_version" > .version # 将当前版本写入.version文件
-        echo "Current version: $current_version" # 输出当前版本
-
-        echo "::set-output name=current_version::$current_version" # 设置当前版本的输出变量
-
-    - name: COMPARE VERSIONS
-      id: compare_versions
-      run: |
-        cached_version=$(cat .version)
-        echo "Cached version: $cached_version"
-        echo "Current version: $current_version" # 使用环境变量
-        if [ "$cached_version" != "$current_version" ]; then
-          echo "New version found: $current_version"
-          echo "::set-output name=new_version_found::true"
-        else
-          echo "No new version found."
-          echo "::set-output name=new_version_found::false"
-        fi
-
+          echo "Cached version: $cached_version"
+          echo "Current version: $current_version" # 使用环境变量
+          if [ "$cached_version" != "$current_version" ]; then
+            echo "New version found: $current_version"
+            echo "::set-output name=new_version_found::true"
+          else
+            echo "No new version found."
+            echo "::set-output name=new_version_found::false"
+          fi
   export_docker_images:
     needs: check_version
     if: needs.check_version.outputs.new_version_found == 'true'
