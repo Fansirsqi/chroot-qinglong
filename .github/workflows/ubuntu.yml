@@ -22,15 +22,15 @@ jobs:
         id: check_version_file
         run: |
           if [ -f ".version" ]; then
-            echo "Version file found in cache."
+            echo "Version file found in cache. $(cat .version)"
             echo "::set-output name=version_file_found::true"
           else
             echo "Version file not found in cache."
             echo "::set-output name=version_file_found::false"
           fi
-      - name: GET CURRENT VERSION
+      - name: GET LATEST VERSION ON QINGLONG
         if: steps.check_version_file.outputs.version_file_found == 'false'
-        run: >
+        run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
           current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
@@ -38,9 +38,9 @@ jobs:
           echo "current_version=$current_version" >>$GITHUB_ENV
 
           echo "$current_version" > .version
+
       - name: COMPARE VERSIONS
         id: compare_versions
-        if: steps.check_version_file.outputs.version_file_found == 'true'
         run: |
           cached_version=$(cat .version)
           if [ "$cached_version" != "$current_version" ]; then
