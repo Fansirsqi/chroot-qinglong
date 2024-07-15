@@ -14,12 +14,14 @@ jobs:
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v3
+
       - name: GET CURRENT VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v3
         with:
           path: .version
           key: fixed-cache-key-for-version
+
       - name: CHECK IF VERSION FILE EXISTS
         id: cached_version_found
         run: |
@@ -31,20 +33,18 @@ jobs:
             echo "Version file not found in cache."
             echo "::set-output name=cached_version_file_found::false"
           fi
+
       - name: GET LATEST VERSION ON QINGLONG
         id: get_latest_version_on_qinglong
-        run: >
+        run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
-
           current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          echo "Current version: $current_version" # 直接输出当前版本
+          echo "::set-output name=current_version::$current_version" # 设置当前版本的输出变量
 
           echo "$current_version" > .version # 将当前版本写入.version文件
 
-          echo "Current version: $current_version" # 输出当前版本
-
-
-          echo "::set-output name=current_version::$current_version" # 设置当前版本的输出变量
       - name: COMPARE VERSIONS
         id: compare_versions
         run: |
@@ -58,6 +58,7 @@ jobs:
             echo "No new version found."
             echo "::set-output name=new_version_found::false"
           fi
+
   export_docker_images:
     needs: check_version
     if: needs.check_version.outputs.new_version_found == 'true'
