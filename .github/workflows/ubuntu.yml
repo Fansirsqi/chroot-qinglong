@@ -8,7 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
+      cached_version_file_found: ${{ steps.cached_version_found.outputs.version_file_found }}
       current_version: ${{ env.current_version }}
+      cached_version: ${{ env.cached_version }}
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v3
@@ -19,17 +21,19 @@ jobs:
           path: .version
           key: fixed-cache-key-for-version
       - name: CHECK IF VERSION FILE EXISTS
-        id: check_version_file
+        id: cached_version_found
         run: |
           if [ -f ".version" ]; then
-            echo "Version file found in cache. $(cat .version)"
-            echo "::set-output name=version_file_found::true"
+            cached_version=$(cat .version)
+            echo "Version file found in cache. $cached_version"
+            echo "::set-output name=cached_version_file_found::true"
           else
             echo "Version file not found in cache."
-            echo "::set-output name=version_file_found::false"
+            echo "::set-output name=cached_version_file_found::false"
           fi
+
       - name: GET LATEST VERSION ON QINGLONG
-        if: steps.check_version_file.outputs.version_file_found == 'false'
+        if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
         run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
@@ -38,6 +42,8 @@ jobs:
           echo "current_version=$current_version" >>$GITHUB_ENV
 
           echo "$current_version" > .version
+
+          echo "$cached_version=$(cat .version)"
 
       - name: COMPARE VERSIONS
         id: compare_versions
