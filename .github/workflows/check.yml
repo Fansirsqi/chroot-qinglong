@@ -19,6 +19,13 @@ jobs:
           path: .version
           key: ${{ runner.OS }}-version-${{ github.sha }} # 使用commit SHA确保唯一性
 
+      - name: VERIFY CACHE
+        if: steps.cache_version.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss for key: ${{ runner.OS }}-version-${{ github.sha }}"
+          echo "Cache path: .version"
+          echo "Cache hit: ${{ steps.cache_version.outputs.cache-hit }}"
+
       - name: GET CURRENT VERSION
         run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
