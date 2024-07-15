@@ -13,10 +13,11 @@ jobs:
       cached_version: ${{ steps.cached_version_found.outputs.cached_version }}
     steps:
       - name: CHECKOUT CODE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        
       - name: GET CACHE VERSION FROM CACHE
         id: cache_version
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .version
           key: fixed-cache-key-for-version
