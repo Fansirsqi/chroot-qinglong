@@ -34,10 +34,10 @@ jobs:
       - name: GET CURRENT VERSION
         id: get_current_version
         if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
-        run: >
+        run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          current_version=$(yq r version.yaml version) # 使用yq简化版本号提取
 
           echo "Current version: $current_version" # 直接输出当前版本
 
@@ -46,10 +46,8 @@ jobs:
           echo "$current_version" > .version # 将当前版本写入.version文件
       - name: COMPARE VERSIONS
         id: compare_versions
-        run: >
-          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+        run: |
+          current_version=$(yq r version.yaml version) # 直接从共享的version.yaml文件中读取版本号
 
           cached_version=$(cat .version)
 
@@ -66,7 +64,7 @@ jobs:
           fi
   export_docker_images:
     needs: check_version
-    if: check_version.outputs.new_version_found == 'true'
+    if: needs.check_version.outputs.new_version_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: SETTING DOCKER BUILDX
@@ -76,20 +74,19 @@ jobs:
           docker pull whyour/qinglong:debian
           docker pull whyour/qinglong:latest
       - name: RUN DOCKER CONTAINER
-        run: >
+        run: |
           docker run --name qinglong-debian -dit -p 5700:5700 whyour/qinglong:debian
 
           docker run --name qinglong-latest -dit -p 5701:5700 whyour/qinglong:latest
       - name: CHECK API STATUS
-        run: >
+        run: |
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health |
           grep -q 200; do sleep 1; done
 
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5701/api/public/health | grep -q 200; do sleep 1; done
       - name: EXECUTE MULTIPLE COMMANDS IN DEBIAN CONTAINER
-        run: >
-          docker exec qinglong-debian bash -c "pip config set global.index-url
-          https://pypi.tuna.tsinghua.edu.cn/simple"
+        run: |
+          docker exec qinglong-debian bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
 
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
 
@@ -97,9 +94,8 @@ jobs:
 
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
       - name: EXECUTE MULTIPLE COMMANDS IN LATEST CONTAINER
-        run: >
-          docker exec qinglong-latest bash -c "pip config set global.index-url
-          https://pypi.tuna.tsinghua.edu.cn/simple"
+        run: |
+          docker exec qinglong-latest bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
 
           docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
       - name: STOP CONTAINER
@@ -118,7 +114,7 @@ jobs:
     needs:
       - check_version
       - export_docker_images
-    if: check_version.outputs.new_version_found == 'true'
+    if: needs.check_version.outputs.new_version_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: CREATE RELEASE
@@ -127,8 +123,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ check_version.outputs.current_version }}
-          release_name: RELEASE ${{ check_version.outputs.current_version }}
+          tag_name: ${{ needs.check_version.outputs.current_version }}
+          release_name: RELEASE ${{ needs.check_version.outputs.current_version }}
           draft: false
           prerelease: false
       - name: UPLOAD DEBIAN RELEASE ASSET
@@ -156,4 +152,4 @@ jobs:
           key: ${{ runner.OS }}-version
           restore-keys: ${{ runner.OS }}-version
       - name: WRITE VERSION TO FILE
-        run: echo ${{ check_version.outputs.current_version }} > .version
+        run: echo ${{ needs.check_version.outputs.current_version }} > .version
