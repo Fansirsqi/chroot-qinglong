@@ -37,7 +37,7 @@ jobs:
         run: |
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
 
-          current_version=$(yq r version.yaml version) # 使用yq简化版本号提取
+          current_version=$(yq '.version' version.yaml) # 使用yq简化版本号提取
 
           echo "Current version: $current_version" # 直接输出当前版本
 
@@ -47,7 +47,7 @@ jobs:
       - name: COMPARE VERSIONS
         id: compare_versions
         run: |
-          current_version=$(yq r version.yaml version) # 直接从共享的version.yaml文件中读取版本号
+          current_version=$(yq '.version' version.yaml) # 直接从共享的version.yaml文件中读取版本号
 
           cached_version=$(cat .version)
 
