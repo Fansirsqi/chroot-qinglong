@@ -1,0 +1,39 @@
+name: check
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # 每周日的午夜RUN一次
+  workflow_dispatch: # 手动触发事件
+
+jobs:
+  check_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CHECKOUT CODE
+        uses: actions/checkout@v3
+
+      - name: GET CURRENT VERSION FROM CACHE
+        id: cache_version
+        uses: actions/cache@v3
+        with:
+          path: .version
+          key: ${{ runner.OS }}-version-${{ github.sha }} # 使用commit SHA确保唯一性
+
+      - name: GET CURRENT VERSION
+        run: |
+          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
+          if [ ! -f version.yaml ]; then
+            echo "Error: Version file not downloaded."
+            exit 1
+          fi
+          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          echo "current_version=$current_version" >>$GITHUB_ENV
+          rm version.yaml # 清理下载的文件
+
+      - name: COMPARE VERSIONS
+        if: steps.cache_version.outputs.cache-hit != 'true' || steps.cache_version.outputs.cache-hit == 'true' && env.current_version != steps.cache_version.outputs.version
+        run: |
+          echo "版本不同或缓存未命中，准备执行RELEASE。"
+          echo "当前版本: ${{ env.current_version }}"
+          echo "缓存版本: ${{ steps.cache_version.outputs.version }}"
+          # 这里可以添加将新版本上传至RELEASE的步骤
