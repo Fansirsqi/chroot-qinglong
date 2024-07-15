@@ -1,4 +1,4 @@
-name: Export Docker Services
+name: EXPORT DOCKER SERVICES
 
 on:
   schedule:
