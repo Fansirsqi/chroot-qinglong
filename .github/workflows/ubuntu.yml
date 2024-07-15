@@ -46,14 +46,22 @@ jobs:
           echo "$current_version" > .version # 将当前版本写入.version文件
       - name: COMPARE VERSIONS
         id: compare_versions
-        run: |
+        run: >
+          
+          echo "Current working directory: $(pwd)" # 打印当前工作目录
+
+
           current_version=$(yq '.version' version.yaml) # 直接从共享的version.yaml文件中读取版本号
+
 
           cached_version=$(cat .version)
 
+
           echo "Cached version: $cached_version"
 
+
           echo "Current version: $current_version" # 使用环境变量
+
 
           if [ "$cached_version" != "$current_version" ]; then
             echo "New version found: $current_version"
@@ -74,28 +82,37 @@ jobs:
           docker pull whyour/qinglong:debian
           docker pull whyour/qinglong:latest
       - name: RUN DOCKER CONTAINER
-        run: |
+        run: >
           docker run --name qinglong-debian -dit -p 5700:5700 whyour/qinglong:debian
+
 
           docker run --name qinglong-latest -dit -p 5701:5700 whyour/qinglong:latest
       - name: CHECK API STATUS
-        run: |
+        run: >
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health |
+
           grep -q 200; do sleep 1; done
+
 
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5701/api/public/health | grep -q 200; do sleep 1; done
       - name: EXECUTE MULTIPLE COMMANDS IN DEBIAN CONTAINER
-        run: |
-          docker exec qinglong-debian bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+        run: >
+          docker exec qinglong-debian bash -c "pip config set global.index-url
+          https://pypi.tuna.tsinghua.edu.cn/simple"
+
 
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
 
+
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n' >>/etc/apt/sources.list"
+
 
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
       - name: EXECUTE MULTIPLE COMMANDS IN LATEST CONTAINER
-        run: |
-          docker exec qinglong-latest bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+        run: >
+          docker exec qinglong-latest bash -c "pip config set global.index-url
+          https://pypi.tuna.tsinghua.edu.cn/simple"
+
 
           docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
       - name: STOP CONTAINER
