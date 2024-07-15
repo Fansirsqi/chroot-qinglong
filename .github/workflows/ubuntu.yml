@@ -14,14 +14,12 @@ jobs:
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v3
-
       - name: GET CURRENT VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v3
         with:
           path: .version
           key: fixed-cache-key-for-version
-
       - name: CHECK IF VERSION FILE EXISTS
         id: cached_version_found
         run: |
@@ -33,25 +31,32 @@ jobs:
             echo "Version file not found in cache."
             echo "cached_version_file_found=false" >> $GITHUB_ENV
           fi
-
       - name: GET CURRENT VERSION
         id: get_current_version
         if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
-        run: |
+        run: >
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
-          echo "Current version: $current_version" # 直接输出当前版本
-          echo "current_version=$current_version" >>$GITHUB_ENV
-          echo "$current_version" > .version # 将当前版本写入.version文件
 
+          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
+          echo "Current version: $current_version" # 直接输出当前版本
+
+          echo "current_version=$current_version" >>$GITHUB_ENV
+
+          echo "$current_version" > .version # 将当前版本写入.version文件
       - name: COMPARE VERSIONS
         id: compare_versions
-        run: |
+        run: >
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
+
           current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
           cached_version=$(cat .version)
+
           echo "Cached version: $cached_version"
+
           echo "Current version: $current_version" # 使用环境变量
+
           if [ "$cached_version" != "$current_version" ]; then
             echo "New version found: $current_version"
             echo "new_version_found=true" >> $GITHUB_ENV
@@ -59,7 +64,6 @@ jobs:
             echo "No new version found."
             echo "new_version_found=false" >> $GITHUB_ENV
           fi
-
   export_docker_images:
     needs: check_version
     if: check_version.outputs.new_version_found == 'true'
