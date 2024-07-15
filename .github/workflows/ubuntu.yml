@@ -49,6 +49,8 @@ jobs:
         id: compare_versions
         run: |
           cached_version=$(cat .version)
+          echo "Cached version: $cached_version"
+          echo "Current version: $current_version"
           if [ "$cached_version" != "$current_version" ]; then
             echo "New version found: $current_version"
             echo "::set-output name=new_version_found::true"
