@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v3
-      - name: GET CURRENT VERSION FROM CACHE
+      - name: GET CACHE VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v3
         with:
@@ -23,9 +23,7 @@ jobs:
       - name: CHECK IF VERSION FILE EXISTS
         id: cached_version_found
         run: |
-          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-          echo "Current working directory: $(pwd)" # 打印当前工作目录
-          echo "Current working directory files : $(ls -ll)" # 打印当前工作目录
+          
           if [ -f ".version" ]; then
             cached_version=$(cat .version)
             echo "Version file found in cache. $cached_version"
@@ -36,8 +34,12 @@ jobs:
           fi
       - name: GET CURRENT VERSION
         id: get_current_version
-        if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
+        # if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
         run: |
+        
+          curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
+          echo "Current working directory: $(pwd)" # 打印当前工作目录
+          echo "Current working directory files : $(ls -ll)" # 打印当前工作目录
 
           current_version=$(yq '.version' version.yaml) # 使用yq简化版本号提取
 
