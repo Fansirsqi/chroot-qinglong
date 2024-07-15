@@ -1,24 +1,23 @@
-name: EXPORT-DOCKER-SERVICES
-
+name: EXPORT DOCKER SERVICES
 on:
   schedule:
-    - cron: "0 0 * * 0" # 每周日的午夜RUN一次
-  workflow_dispatch: # 手动触发事件
-
+    - cron: 0 0 * * 0
+  workflow_dispatch: null
 jobs:
   check_version:
     runs-on: ubuntu-latest
+    outputs:
+      new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
+      current_version: ${{ env.current_version }}
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v3
-
       - name: GET CURRENT VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v3
         with:
           path: .version
-          key: fixed-cache-key-for-version # 使用固定的缓存键
-
+          key: fixed-cache-key-for-version
       - name: CHECK IF VERSION FILE EXISTS
         id: check_version_file
         run: |
@@ -29,23 +28,21 @@ jobs:
             echo "Version file not found in cache."
             echo "::set-output name=version_file_found::false"
           fi
-
       - name: GET CURRENT VERSION
         if: steps.check_version_file.outputs.version_file_found == 'false'
-        run: |
+        run: >
           curl -sL https://qn.whyour.cn/version.yaml -o version.yaml
-          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
-          echo "current_version=$current_version" >>$GITHUB_ENV
-          echo "$current_version" > .version # 将版本号写入文件以供缓存
 
+          current_version=$(cat version.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
+          echo "current_version=$current_version" >>$GITHUB_ENV
+
+          echo "$current_version" > .version
       - name: COMPARE VERSIONS
-      - id: compare_versions
+        id: compare_versions
         if: steps.check_version_file.outputs.version_file_found == 'true'
         run: |
           cached_version=$(cat .version)
-          echo "Cached version: $cached_version"
-          echo "Comparing with current version: ${{ env.current_version }}"
-          # 这里可以添加比较逻辑和后续的RELEASE步骤
           if [ "$cached_version" != "$current_version" ]; then
             echo "New version found: $current_version"
             echo "::set-output name=new_version_found::true"
@@ -53,67 +50,74 @@ jobs:
             echo "No new version found."
             echo "::set-output name=new_version_found::false"
           fi
-
+  export_docker_images:
+    needs: check_version
+    if: needs.check_version.outputs.new_version_found == 'true'
+    runs-on: ubuntu-latest
+    steps:
       - name: SETTING DOCKER BUILDX
-        if: steps.compare_versions.outputs.new_version_found == 'true'
         uses: docker/setup-buildx-action@v2
-
       - name: PULL DOCKER IMAGE
         run: |
           docker pull whyour/qinglong:debian
           docker pull whyour/qinglong:latest
-
       - name: RUN DOCKER CONTAINER
-        run: |
+        run: >
           docker run --name qinglong-debian -dit -p 5700:5700 whyour/qinglong:debian
+
           docker run --name qinglong-latest -dit -p 5701:5700 whyour/qinglong:latest
-
       - name: CHECK API STATUS
-        run: |
-          while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
+        run: >
+          while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health |
+          grep -q 200; do sleep 1; done
+
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5701/api/public/health | grep -q 200; do sleep 1; done
-
       - name: EXECUTE MULTIPLE COMMANDS IN DEBIAN CONTAINER
-        run: |
-          docker exec qinglong-debian bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+        run: >
+          docker exec qinglong-debian bash -c "pip config set global.index-url
+          https://pypi.tuna.tsinghua.edu.cn/simple"
+
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
+
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free\n' >>/etc/apt/sources.list"
+
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
-
       - name: EXECUTE MULTIPLE COMMANDS IN LATEST CONTAINER
-        run: |
-          docker exec qinglong-latest bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
-          docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
+        run: >
+          docker exec qinglong-latest bash -c "pip config set global.index-url
+          https://pypi.tuna.tsinghua.edu.cn/simple"
 
+          docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
       - name: STOP CONTAINER
         run: |
           docker stop qinglong-debian
           docker stop qinglong-latest
-
       - name: COMMIT DOCKER CONTAINER
         run: |
           docker commit qinglong-debian qinglong-debian
           docker commit qinglong-latest qinglong-latest
-
       - name: SAVE DOCKER IMAGE
         run: |
           docker export -o qinglong-debian.tar qinglong-debian
           docker export -o qinglong-latest.tar qinglong-latest
-
+  create_and_upload_release:
+    needs:
+      - check_version
+      - export_docker_images
+    if: needs.check_version.outputs.new_version_found == 'true'
+    runs-on: ubuntu-latest
+    steps:
       - name: CREATE RELEASE
-        if: steps.compare_versions.outputs.new_version_found == 'true'
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.current_version }}
-          release_name: RELEASE ${{ env.current_version }}
+          tag_name: ${{ needs.check_version.outputs.current_version }}
+          release_name: RELEASE ${{ needs.check_version.outputs.current_version }}
           draft: false
           prerelease: false
-
       - name: UPLOAD DEBIAN RELEASE ASSET
-        if: steps.compare_versions.outputs.new_version_found == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -122,9 +126,7 @@ jobs:
           asset_path: ./qinglong-debian.tar
           asset_name: qinglong-debian.tar
           asset_content_type: application/x-tar
-
       - name: UPLOAD LATEST RELEASE ASSET
-        if: steps.compare_versions.outputs.new_version_found == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -133,15 +135,11 @@ jobs:
           asset_path: ./qinglong-latest.tar
           asset_name: qinglong-latest.tar
           asset_content_type: application/x-tar
-
       - name: SAVE VERSION IN CACHE
-        if: steps.compare_versions.outputs.new_version_found == 'true'
         uses: actions/cache@v3
         with:
           path: .version
           key: ${{ runner.OS }}-version
           restore-keys: ${{ runner.OS }}-version
-
       - name: WRITE VERSION TO FILE
-        if: steps.compare_versions.outputs.new_version_found == 'true'
-        run: echo ${{ env.current_version }} > .version
+        run: echo ${{ needs.check_version.outputs.current_version }} > .version
