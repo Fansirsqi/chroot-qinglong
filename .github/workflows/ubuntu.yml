@@ -56,6 +56,8 @@ jobs:
 
           curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
 
+          curl https://qn.whyour.cn/version.yaml
+
           current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
           cached_version=$(cat .version)
