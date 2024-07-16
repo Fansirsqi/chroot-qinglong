@@ -74,7 +74,7 @@ jobs:
           fi
   export_docker_images:
     needs: check_version
-    if: env.NEW_VERSION_FOUND == 'true'
+    if: ${{ env.NEW_VERSION_FOUND == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: SETTING DOCKER BUILDX
@@ -124,7 +124,7 @@ jobs:
     needs:
       - check_version
       - export_docker_images
-    if: env.NEW_VERSION_FOUND == 'true'
+    if: ${{ env.NEW_VERSION_FOUND == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Release
