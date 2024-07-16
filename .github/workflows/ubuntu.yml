@@ -23,16 +23,16 @@ jobs:
         run: |
           if [ -f ".version" ]; then
             cached_version=$(cat .version)
-            echo "cached_version=$cached_version" >> $GITHUB_ENV
+            echo "cached_version=$cached_version" >> $GITHUB_OUTPUT
             echo "Version file found in cache. $cached_version"
-            echo "CACHED_VERSION_FILE_FOUND=true" >> $GITHUB_ENV
+            echo "CACHED_VERSION_FILE_FOUND=true" >> $GITHUB_OUTPUT
           else
             echo "Version file not found in cache."
-            echo "CACHED_VERSION_FILE_FOUND=false" >> $GITHUB_ENV
+            echo "CACHED_VERSION_FILE_FOUND=false" >> $GITHUB_OUTPUT
           fi
       - name: GET CURRENT VERSION
         id: get_current_version
-        if: env.CACHED_VERSION_FILE_FOUND == 'false'
+        if: steps.check_version_file.outputs.CACHED_VERSION_FILE_FOUND == 'false'
         run: |
           current_timestamp=$(date +%s%N | cut -b1-13)
           echo "当前时间戳 $current_timestamp"
@@ -44,9 +44,8 @@ jobs:
           CURRENT_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
           echo "Current version: $CURRENT_VERSION"
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >>$GITHUB_ENV
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >>$GITHUB_OUTPUT
           echo "$CURRENT_VERSION" > .version
-          echo "::set-output name=CURRENT_VERSION::$CURRENT_VERSION"
 
       - name: COMPARE VERSIONS
         id: compare_versions
@@ -58,45 +57,42 @@ jobs:
           CURRENT_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
           cached_version=$(cat .version)
 
-          echo "CHANGELOG=$(cat latest.yaml)" >>$GITHUB_ENV
+          echo "CHANGELOG=$(cat latest.yaml)" >>$GITHUB_OUTPUT
           echo "Cached version: $cached_version"
           echo "Current version: $CURRENT_VERSION"
 
           if [ "$cached_version" != "$CURRENT_VERSION" ]; then
             echo "New version found: $CURRENT_VERSION"
-            echo "NEW_VERSION_FOUND=true" >> $GITHUB_ENV
-            echo "::set-output name=NEW_VERSION_FOUND::true"
+            echo "NEW_VERSION_FOUND=true" >> $GITHUB_OUTPUT
           else
             echo "No new version found."
-            echo "NEW_VERSION_FOUND=false" >> $GITHUB_ENV
-            echo "::set-output name=NEW_VERSION_FOUND::false"
+            echo "NEW_VERSION_FOUND=false" >> $GITHUB_OUTPUT
           fi
-          echo "::set-output name=CHANGELOG::$(cat latest.yaml)"
 
-  export_docker_images:
-    needs: check_version
-    if: needs.check_version.outputs.NEW_VERSION_FOUND == 'true'
-    runs-on: ubuntu-latest
-    steps:
       - name: SETTING DOCKER BUILDX
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         uses: docker/setup-buildx-action@v2
 
       - name: PULL DOCKER IMAGE
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker pull whyour/qinglong:debian
           docker pull whyour/qinglong:latest
 
       - name: RUN DOCKER CONTAINER
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker run --name qinglong-debian -dit -p 5700:5700 whyour/qinglong:debian
           docker run --name qinglong-latest -dit -p 5701:5700 whyour/qinglong:latest
 
       - name: CHECK API STATUS
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5700/api/public/health | grep -q 200; do sleep 1; done
           while ! curl -s -w "%{http_code}" http://127.0.0.1:5701/api/public/health | grep -q 200; do sleep 1; done
 
       - name: EXECUTE MULTIPLE COMMANDS IN DEBIAN CONTAINER
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker exec qinglong-debian bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free\n' >/etc/apt/sources.list"
@@ -104,33 +100,31 @@ jobs:
           docker exec qinglong-debian bash -c "printf 'deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free\n' >>/etc/apt/sources.list"
 
       - name: EXECUTE MULTIPLE COMMANDS IN LATEST CONTAINER
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker exec qinglong-latest bash -c "pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
           docker exec qinglong-latest bash -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories"
 
       - name: STOP CONTAINER
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker stop qinglong-debian
           docker stop qinglong-latest
 
       - name: COMMIT DOCKER CONTAINER
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker commit qinglong-debian qinglong-debian
           docker commit qinglong-latest qinglong-latest
 
-      - name: SAVE DOCKER IMAGE
+      - name: EXPORT DOCKER IMAGE
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: |
           docker export -o qinglong-debian.tar qinglong-debian
           docker export -o qinglong-latest.tar qinglong-latest
 
-  create_and_upload_release:
-    needs:
-      - check_version
-      - export_docker_images
-    if: needs.check_version.outputs.NEW_VERSION_FOUND == 'true'
-    runs-on: ubuntu-latest
-    steps:
       - name: Release
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -146,6 +140,7 @@ jobs:
             qinglong-latest.tar
 
       - name: SAVE VERSION IN CACHE
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         uses: actions/cache@v4
         with:
           path: .version
@@ -153,4 +148,5 @@ jobs:
           restore-keys: CACHE-VERSION
 
       - name: WRITE VERSION TO FILE
+        if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
         run: echo ${{ needs.check_version.outputs.CURRENT_VERSION }} > .version
