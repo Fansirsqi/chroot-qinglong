@@ -136,7 +136,7 @@ jobs:
           tag_name: ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           name: RELEASE ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           body: |
-            ${{ $CHANGELOG }}
+            $CHANGELOG
           draft: false
           prerelease: false
           files: |
