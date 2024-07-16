@@ -1,4 +1,4 @@
-name: EXPORT DOCKER SERVICES
+name: Export Docker Services
 on:
   schedule:
     - cron: 0 0 * * 0
@@ -127,12 +127,12 @@ jobs:
           docker export -o qinglong-latest.tar qinglong-latest
 
       - name: Create Release
-        if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }} 
+        if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
+          tag_name: "${{ steps.compare_versions.outputs.ONLINE_VERSION }}"
           name: RELEASE ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           body: |
             "Update to Version ${{ steps.compare_versions.outputs.ONLINE_VERSION }}"
