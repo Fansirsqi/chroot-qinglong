@@ -6,21 +6,16 @@ on:
 jobs:
   check_version:
     runs-on: ubuntu-latest
-    outputs:
-      new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
-      cached_version_file_found: ${{ steps.cached_version_found.outputs.version_file_found }}
-      current_version: ${{ steps.compare_versions.outputs.current_version }}
-      cached_version: ${{ steps.cached_version_found.outputs.cached_version }}
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v4
-        
+
       - name: GET CACHE VERSION FROM CACHE
         id: cache_version
         uses: actions/cache@v4
         with:
           path: .version
-          key: fixed-cache-key-for-version
+          key: CACHE-VERSION
       - name: CHECK IF VERSION FILE EXISTS
         id: cached_version_found
         run: |
@@ -29,29 +24,28 @@ jobs:
             cached_version=$(cat .version)
             echo "cached_version=$cached_version" >> $GITHUB_ENV
             echo "Version file found in cache. $cached_version"
-            echo "cached_version_file_found=true" >> $GITHUB_ENV
+            echo "CACHED_VERSION_FILE_FOUND=true" >> $GITHUB_ENV
           else
             echo "Version file not found in cache."
-            echo "cached_version_file_found=false" >> $GITHUB_ENV
+            echo "CACHED_VERSION_FILE_FOUND=false" >> $GITHUB_ENV
           fi
       - name: GET CURRENT VERSION
-        id: get_current_version
-        if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
+        if: env.CACHED_VERSION_FILE_FOUND == 'false'
         run: |
           current_timestamp=$(date +%s%N | cut -b1-13)
           echo "当前时间戳 $current_timestamp"
           curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
-          
+
           echo "Current working directory: $(pwd)" # 打印当前工作目录
           echo "Current working directory files : $(ls -ll)" # 打印当前工作目录
 
-          current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          CURRENT_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
-          echo "Current version: $current_version" # 直接输出当前版本
+          echo "Current version: $CURRENT_VERSION" # 直接输出当前版本
 
-          echo "current_version=$current_version" >>$GITHUB_ENV
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >>$GITHUB_ENV
 
-          echo "$current_version" > .version # 将当前版本写入.version文件
+          echo "$CURRENT_VERSION" > .version # 将当前版本写入.version文件
 
       - name: COMPARE VERSIONS
         id: compare_versions
@@ -61,24 +55,26 @@ jobs:
           echo "当前时间戳 $current_timestamp"
           curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
 
-          current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+          CURRENT_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
           cached_version=$(cat .version)
 
+          echo "CHANGELOG=$(cat latest.yaml)" >>$GITHUB_ENV
+
           echo "Cached version: $cached_version"
 
-          echo "Current version: $current_version" # 使用环境变量
+          echo "Current version: $CURRENT_VERSION" # 使用环境变量
 
-          if [ "$cached_version" != "$current_version" ]; then
-            echo "New version found: $current_version"
-            echo "new_version_found=true" >> $GITHUB_ENV
+          if [ "$cached_version" != "$CURRENT_VERSION" ]; then
+            echo "New version found: $CURRENT_VERSION"
+            echo "NEW_VERSION_FOUND=true" >> $GITHUB_ENV
           else
             echo "No new version found."
-            echo "new_version_found=false" >> $GITHUB_ENV
+            echo "NEW_VERSION_FOUND=false" >> $GITHUB_ENV
           fi
   export_docker_images:
     needs: check_version
-    if: needs.check_version.outputs.new_version_found == 'true'
+    if: env.NEW_VERSION_FOUND == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: SETTING DOCKER BUILDX
@@ -128,42 +124,29 @@ jobs:
     needs:
       - check_version
       - export_docker_images
-    if: needs.check_version.outputs.new_version_found == 'true'
+    if: env.NEW_VERSION_FOUND == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: CREATE RELEASE
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Release
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ needs.check_version.outputs.current_version }}
-          release_name: RELEASE ${{ needs.check_version.outputs.current_version }}
+          tag_name: ${{ env.CURRENT_VERSION }}
+          name: RELEASE ${{ env.CURRENT_VERSION }}
+          body: |
+            ${{ env.CHANGELOG }}
           draft: false
           prerelease: false
-      - name: UPLOAD DEBIAN RELEASE ASSET
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./qinglong-debian.tar
-          asset_name: qinglong-debian.tar
-          asset_content_type: application/x-tar
-      - name: UPLOAD LATEST RELEASE ASSET
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./qinglong-latest.tar
-          asset_name: qinglong-latest.tar
-          asset_content_type: application/x-tar
+          files: |
+            qinglong-debian.tar
+            qinglong-latest.tar
+
       - name: SAVE VERSION IN CACHE
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .version
-          key: ${{ runner.OS }}-version
-          restore-keys: ${{ runner.OS }}-version
+          key: CACHE-VERSION
+          restore-keys: CACHE-VERSION
       - name: WRITE VERSION TO FILE
-        run: echo ${{ needs.check_version.outputs.current_version }} > .version
+        run: echo ${{ env.CURRENT_VERSION }} > .version
