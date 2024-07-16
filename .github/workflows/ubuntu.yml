@@ -61,6 +61,8 @@ jobs:
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
           CACHED_VERSION=$(cat .version)
 
+          echo "FOR TEST ${{ steps.compare_versions.outputs.ONLINE_VERSION }}"
+
           echo "Cached version: $CACHED_VERSION"
           echo "Current version: $ONLINE_VERSION"
 
@@ -128,7 +130,7 @@ jobs:
 
       - name: Create Release
         if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
