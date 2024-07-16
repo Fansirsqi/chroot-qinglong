@@ -14,12 +14,13 @@ jobs:
       # Runs a single command using the runners shell
       - name: Run a one-line script
         run: |
-          echo Hello, world!
-          curl https://qn.whyour.cn/version.yaml
+          current_timestamp=$(date +%s%N | cut -b1-13)
+          echo $current_timestamp
+          curl https://qn.whyour.cn/version.yaml?t=$current_timestamp
 
       - name: Check Version
         run: |
-          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
+          curl -sL https://qn.whyour.cn/version.yaml?t=$current_timestamp -o latest.yaml
           ls
           cat ./latest.yaml
           cur_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
