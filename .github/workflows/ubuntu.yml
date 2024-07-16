@@ -38,8 +38,10 @@ jobs:
         id: get_current_version
         if: steps.cached_version_found.outputs.cached_version_file_found == 'false'
         run: |
-
-          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
+          current_timestamp=$(date +%s%N | cut -b1-13)
+          echo "当前时间戳 $current_timestamp"
+          curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
+          
           echo "Current working directory: $(pwd)" # 打印当前工作目录
           echo "Current working directory files : $(ls -ll)" # 打印当前工作目录
 
@@ -55,9 +57,9 @@ jobs:
         id: compare_versions
         run: |
 
-          curl -sL https://qn.whyour.cn/version.yaml -o latest.yaml
-
-          curl https://qn.whyour.cn/version.yaml
+          current_timestamp=$(date +%s%N | cut -b1-13)
+          echo "当前时间戳 $current_timestamp"
+          curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
 
           current_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
