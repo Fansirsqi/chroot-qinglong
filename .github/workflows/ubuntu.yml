@@ -2,10 +2,14 @@ name: EXPORT DOCKER SERVICES
 on:
   schedule:
     - cron: 0 0 * * 0
-  workflow_dispatch: null
+  workflow_dispatch:
 jobs:
   check_version:
     runs-on: ubuntu-latest
+    outputs:
+      NEW_VERSION_FOUND: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND }}
+      CURRENT_VERSION: ${{ steps.get_current_version.outputs.CURRENT_VERSION }}
+      CHANGELOG: ${{ steps.compare_versions.outputs.CHANGELOG }}
     steps:
       - name: CHECKOUT CODE
         uses: actions/checkout@v4
@@ -30,7 +34,8 @@ jobs:
             echo "CACHED_VERSION_FILE_FOUND=false" >> $GITHUB_ENV
 
       - name: GET CURRENT VERSION
-        if: steps.check_version_file.outputs.CACHED_VERSION_FILE_FOUND == 'false'
+        id: get_current_version
+        if: env.CACHED_VERSION_FILE_FOUND == 'false'
         run: |
           current_timestamp=$(date +%s%N | cut -b1-13)
           echo "当前时间戳 $current_timestamp"
@@ -44,6 +49,9 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
           echo "CURRENT_VERSION=$CURRENT_VERSION" >>$GITHUB_ENV
           echo "$CURRENT_VERSION" > .version
+
+        outputs:
+          CURRENT_VERSION: ${{ steps.get_current_version.outputs.CURRENT_VERSION }}
 
       - name: COMPARE VERSIONS
         id: compare_versions
@@ -66,9 +74,13 @@ jobs:
             echo "No new version found."
             echo "NEW_VERSION_FOUND=false" >> $GITHUB_ENV
 
+        outputs:
+          NEW_VERSION_FOUND: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND }}
+          CHANGELOG: ${{ steps.compare_versions.outputs.CHANGELOG }}
+
   export_docker_images:
     needs: check_version
-    if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
+    if: needs.check_version.outputs.NEW_VERSION_FOUND == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: SETTING DOCKER BUILDX
@@ -120,7 +132,7 @@ jobs:
     needs:
       - check_version
       - export_docker_images
-    if: steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true'
+    if: needs.check_version.outputs.NEW_VERSION_FOUND == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Release
@@ -128,10 +140,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.CURRENT_VERSION }}
-          name: RELEASE ${{ env.CURRENT_VERSION }}
+          tag_name: ${{ needs.check_version.outputs.CURRENT_VERSION }}
+          name: RELEASE ${{ needs.check_version.outputs.CURRENT_VERSION }}
           body: |
-            ${{ env.CHANGELOG }}
+            ${{ needs.check_version.outputs.CHANGELOG }}
           draft: false
           prerelease: false
           files: |
@@ -146,4 +158,4 @@ jobs:
           restore-keys: CACHE-VERSION
 
       - name: WRITE VERSION TO FILE
-        run: echo ${{ env.CURRENT_VERSION }} > .version
+        run: echo ${{ needs.check_version.outputs.CURRENT_VERSION }} > .version
