@@ -1,28 +1,15 @@
-# This is a basic workflow to help you get started with Actions
-
-name: Test
-
 on:
   workflow_dispatch:
-
 jobs:
-  build:
+  use_api:
     runs-on: ubuntu-latest
-
+    permissions:
+      issues: read
     steps:
-      - uses: actions/checkout@v4
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          current_timestamp=$(date +%s%N | cut -b1-13)
-          echo $current_timestamp
-          curl https://qn.whyour.cn/version.yaml?t=$current_timestamp
-
-      - name: Check Version
-        run: |
-          current_timestamp=$(date +%s%N | cut -b1-13)
-          echo $current_timestamp
-          curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
-          cat ./latest.yaml
-          cur_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
-          echo "$cur_version"
+          gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/Fansirsqi/chroot-qinglong/releases/latest
