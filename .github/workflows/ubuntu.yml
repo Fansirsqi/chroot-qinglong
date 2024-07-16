@@ -61,7 +61,6 @@ jobs:
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
           CACHED_VERSION=$(cat .version)
 
-          echo "CHANGELOG=$(cat latest.yaml)" >>$GITHUB_ENV
           echo "Cached version: $CACHED_VERSION"
           echo "Current version: $ONLINE_VERSION"
 
@@ -136,7 +135,7 @@ jobs:
           tag_name: ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           name: RELEASE ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           body: |
-            $CHANGELOG
+            "Update to Version ${{ steps.compare_versions.outputs.ONLINE_VERSION }}"
           draft: false
           prerelease: false
           files: |
