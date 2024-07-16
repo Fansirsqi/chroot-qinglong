@@ -20,8 +20,8 @@ jobs:
 
       - name: Check Version
         run: |
+          current_timestamp=$(date +%s%N | cut -b1-13)
           curl -sL https://qn.whyour.cn/version.yaml?t=$current_timestamp -o latest.yaml
-          ls
           cat ./latest.yaml
           cur_version=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
           echo "$cur_version"
