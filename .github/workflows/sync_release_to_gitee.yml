@@ -1,11 +1,13 @@
 name: sync_release_to_gitee
 
 on:
-  release:
+  
   workflow_dispatch:
-  workflow_run:
-    workflows: ["release"] #your release workflow name
-    types: [completed]
+  # workflow_run:
+  #   workflows: ["release"] #your release workflow name
+  #   types: [completed]
+  release:
+    types: [created]
       
 jobs:
   sync2gitee:
