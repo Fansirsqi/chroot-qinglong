@@ -122,15 +122,44 @@ jobs:
           docker commit qinglong-debian qinglong-debian
           docker commit qinglong-latest qinglong-latest
 
-      - name: Export Docker Image
-        if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
+      - name: Compress files and list file sizes
         run: |
-          docker export -o qinglong-debian.tar qinglong-debian
-          docker export -o qinglong-latest.tar qinglong-latest
+          # Compress qinglong-debian.tar in gzip format
+          gzip -c qinglong-debian.tar > qinglong-debian.tar.gz
+          # Compress qinglong-debian.tar in bzip2 format
+          bzip2 -c qinglong-debian.tar > qinglong-debian.tar.bz2
+          # Compress qinglong-debian.tar in xz format
+          xz -c qinglong-debian.tar > qinglong-debian.tar.xz
+
+          # Compress qinglong-latest.tar in gzip format
+          gzip -c qinglong-latest.tar > qinglong-latest.tar.gz
+          # Compress qinglong-latest.tar in bzip2 format
+          bzip2 -c qinglong-latest.tar > qinglong-latest.tar.bz2
+          # Compress qinglong-latest.tar in xz format
+          xz -c qinglong-latest.tar > qinglong-latest.tar.xz
+
+          # List file sizes before and after compression
+          echo "qinglong-debian.tar size:"
+          ls -lh qinglong-debian.tar
+          echo "qinglong-debian.tar.gz size:"
+          ls -lh qinglong-debian.tar.gz
+          echo "qinglong-debian.tar.bz2 size:"
+          ls -lh qinglong-debian.tar.bz2
+          echo "qinglong-debian.tar.xz size:"
+          ls -lh qinglong-debian.tar.xz
+
+          echo "qinglong-latest.tar size:"
+          ls -lh qinglong-latest.tar
+          echo "qinglong-latest.tar.gz size:"
+          ls -lh qinglong-latest.tar.gz
+          echo "qinglong-latest.tar.bz2 size:"
+          ls -lh qinglong-latest.tar.bz2
+          echo "qinglong-latest.tar.xz size:"
+          ls -lh qinglong-latest.tar.xz
 
       - name: Create Release
         if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -142,7 +171,13 @@ jobs:
           prerelease: false
           files: |
             qinglong-debian.tar
+            qinglong-debian.tar.gz
+            qinglong-debian.tar.bz2
+            qinglong-debian.tar.xz
             qinglong-latest.tar
+            qinglong-latest.tar.gz
+            qinglong-latest.tar.bz2
+            qinglong-latest.tar.xz
 
       - name: Save Version In Cache
         if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
