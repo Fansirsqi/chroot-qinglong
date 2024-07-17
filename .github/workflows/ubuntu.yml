@@ -122,7 +122,13 @@ jobs:
           docker commit qinglong-debian qinglong-debian
           docker commit qinglong-latest qinglong-latest
 
-      - name: Compress files and list file sizes
+      - name: Export Docker Image
+        if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
+        run: |
+          docker export -o qinglong-debian.tar qinglong-debian
+          docker export -o qinglong-latest.tar qinglong-latest
+
+      - name: Compress Files And List File Sizes
         run: |
           # Compress qinglong-debian.tar in gzip format
           gzip -c qinglong-debian.tar > qinglong-debian.tar.gz
