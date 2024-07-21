@@ -129,6 +129,7 @@ jobs:
           docker export -o qinglong-latest.tar qinglong-latest
 
       - name: Compress Files And List File Sizes
+        if: ${{ steps.compare_versions.outputs.NEW_VERSION_FOUND == 'true' }}
         run: |
           # Compress qinglong-debian.tar in gzip format
           gzip -c qinglong-debian.tar > qinglong-debian.tar.gz
