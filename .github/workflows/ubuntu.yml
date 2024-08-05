@@ -48,7 +48,7 @@ jobs:
           
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
-          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' latest.yaml | sed ':a;N;$!ba;s/\n/\\n/g')
+          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' version.yaml | sed ':a;N;$!ba;s/\n/ <br\/> /g')
           
           echo "Current version: $ONLINE_VERSION"
 
@@ -64,7 +64,7 @@ jobs:
 
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
-          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' latest.yaml | sed ':a;N;$!ba;s/\n/\\n/g')
+          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' version.yaml | sed ':a;N;$!ba;s/\n/ <br\/> /g')
           
           CACHED_VERSION=$(cat .version)
           
@@ -182,7 +182,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
-          name: RELEASE ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
+          name: Releases ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           body: |
             Update to Version ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
             CHANGELOG: 
