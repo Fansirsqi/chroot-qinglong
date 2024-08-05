@@ -45,10 +45,15 @@ jobs:
           current_timestamp=$(date +%s%N | cut -b1-13)
           echo "当前时间戳 $current_timestamp"
           curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
-
+          
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
 
+          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' latest.yaml | sed ':a;N;$!ba;s/\n/\\n/g')
+          
           echo "Current version: $ONLINE_VERSION"
+
+          echo "Current CHANGELOG: $CHANGELOG"
+          
 
       - name: Compare Versions
         id: compare_versions
@@ -58,8 +63,14 @@ jobs:
           curl -sL "https://qn.whyour.cn/version.yaml?t=$current_timestamp" -o latest.yaml
 
           ONLINE_VERSION=$(cat latest.yaml | grep version | cut -d ':' -f 2 | tr -d ' "')
+
+          CHANGELOG=$(awk '/changeLog: \|/{flag=1;next}/^[^ ]/{flag=0}flag' latest.yaml | sed ':a;N;$!ba;s/\n/\\n/g')
+          
           CACHED_VERSION=$(cat .version)
+          
           echo "ONLINE_VERSION=$ONLINE_VERSION" >>$GITHUB_OUTPUT
+
+          echo "CHANGELOG=$CHANGELOG" >>$GITHUB_OUTPUT
 
           echo "FOR TEST ${{ steps.compare_versions.outputs.ONLINE_VERSION }}"
 
@@ -174,6 +185,8 @@ jobs:
           name: RELEASE ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
           body: |
             Update to Version ${{ steps.compare_versions.outputs.ONLINE_VERSION }}
+            CHANGELOG: 
+              ${{ steps.compare_versions.outputs.CHANGELOG }}
           draft: false
           prerelease: false
           files: |
