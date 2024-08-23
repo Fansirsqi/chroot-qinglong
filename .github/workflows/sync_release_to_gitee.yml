@@ -1,5 +1,5 @@
 name: sync_release_to_gitee
-
+# 文件大小应该会影响推送，gitee个人版应该有限制
 on:
   
   workflow_dispatch:

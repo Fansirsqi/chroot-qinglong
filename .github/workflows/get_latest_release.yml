@@ -1,0 +1,27 @@
+name: Get Latest Release
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  # schedule:
+  #   - cron: 0 0 * * 0
+  workflow_dispatch: null
+
+jobs:
+  get-latest-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get latest release
+        id: latest_release
+        run: |
+          latest_release=$(curl --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --header "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+          echo "::set-output name=latest_release::${latest_release}"
+
+      - name: Use the latest release version
+        run: |
+          echo "Latest release version: ${{ steps.latest_release.outputs.latest_release }}"
