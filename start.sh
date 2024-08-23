@@ -20,8 +20,28 @@ require_root() {
   fi
 }
 
+
+
 # 设置安装目录
 QL_INSTALL_DIR=/rootfs/$QL_BRANCH
+
+# 添加一个函数来检查文件是否为空
+check_if_file_is_empty() {
+  if [ ! -s "$1" ]; then
+    echo "文件 $1 是空的。"
+    return 0
+  else
+    echo "文件 $1 已存在，大小为 $(du -h "$1" | cut -f1)。"
+    local action
+    read -p "您想覆盖(o)，删除(d)，还是跳过(s)？(默认覆盖): " action
+    case $action in
+      d) rm -f "$1";;
+      s) return 1;;
+      *) echo "覆盖现有文件。";;
+    esac
+  fi
+}
+
 
 # 检查并解压QingLong安装包
 check_and_decompress() {
@@ -30,6 +50,7 @@ check_and_decompress() {
 
   for tar_file in "${QL_TARS[@]}"; do
     if [ -f "$tar_file" ]; then
+      check_if_file_is_empty "$tar_file" || continue
       if [[ "$tar_file" == *"debian"* ]]; then
         QL_BRANCH="debian"
       elif [[ "$tar_file" == *"latest"* ]]; then
