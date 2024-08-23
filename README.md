@@ -12,6 +12,7 @@
 
 相关内容
 ```bash
+xz -dc xxx | tar -xvf -C /rootfs
 PNPM_HOME=/root/.local/share/pnpm
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.local/share/pnpm:/root/.local/share/pnpm/global/5/node
 NODE_PATH=/usr/local/bin:/usr/local/pnpm-global/5/node_modules:/usr/local/lib/node_modules:/root/.local/share/pnpm/global/5/nod
