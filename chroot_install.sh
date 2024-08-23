@@ -1,10 +1,10 @@
 #!/bin/bash
 
-local QL_BRANCH=$1
-local QL_INSTALL_DIR=$2
-local SCRIPT_POINT=$3 #/usr/bin
-local SCRIPT_ENV=$3/env
-local SCRIPTDIR=$SCRIPTDIR #/usr/loacl/bin
+QL_BRANCH=$1
+QL_INSTALL_DIR=$2
+SCRIPT_POINT=$3 #/usr/bin
+SCRIPT_ENV=$3/env
+SCRIPTDIR=$SCRIPTDIR #/usr/loacl/bin
 
 # 设置启动脚本
 cat <<EOF >$SCRIPTDIR/start_qinglong
