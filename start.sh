@@ -1,7 +1,7 @@
 #!/bin/bash
 
-curl -o chroot_install.sh https://raw.githubusercontent.com/Fansirsqi/chroot-qinglong/main/chroot_install.sh
-curl -o proot_install.sh https://raw.githubusercontent.com/Fansirsqi/chroot-qinglong/main/proot_install.sh
+curl -osL chroot_install.sh https://raw.githubusercontent.com/Fansirsqi/chroot-qinglong/main/chroot_install.sh
+curl -osL proot_install.sh https://raw.githubusercontent.com/Fansirsqi/chroot-qinglong/main/proot_install.sh
 chmod +x proot_install.sh
 chmod +x chroot_install.sh
 
