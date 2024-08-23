@@ -19,13 +19,15 @@ QL_INSTALL_DIR=/rootfs/$QL_BRANCH
 require_root() {
   if [ "$(id -u)" == "0" ]; then
     echo "✅您是root用户，将继续运行脚本。"
+    check_and_decompress
+    install_script
   else
     echo "❌您需要root权限来运行此脚本。"
     exit 1
   fi
 }
 
-check_decompression() {
+check_and_decompress() {
   local QL_TARS=$1
   local QL_INSTALL_DIR=$2
   # 检查当前目录下存在的文件以确定分支和解压方法
